@@ -5,6 +5,11 @@
 #include "block_store.h"
 // include more if you need
 
+struct block_store
+{
+	uint8_t *blocks; //Each point in the array represents a different block of data, the array position would then act as the block's id
+	bitmap_t *fbm; //Represents the free block manager
+};
 
 // You might find this handy. I put it around unused parameters, but you should
 // remove it before you submit. Just allows things to compile initially.
@@ -12,12 +17,36 @@
 
 block_store_t *block_store_create()
 {
-	return NULL;
+	block_store_t *bs = (block_store_t *)malloc(sizeof(block_store_t));
+	if(bs == NULL)
+	{
+		return NULL; //Failed allocation.
+	}
+	bs->fbm = bitmap_create(BITMAP_SIZE_BITS); //This creates a bitmap depending on the total number of bytes from the set of blocks 
+	if(bs->fbm == NULL)
+	{			
+	   	free(bs);
+		return NULL;
+	}
+	bs->blocks  = (uint8_t *)malloc(BLOCK_STORE_NUM_BYTES);
+	if(bs->blocks == NULL)
+	{
+	   bitmap_destroy(bs->fbm);
+	   free(bs);
+	   return NULL;
+	}
+	
+	return bs;
 }
+
 
 void block_store_destroy(block_store_t *const bs)
 {
-	UNUSED(bs);
+ 	if(bs){
+		bitmap_destroy(bs->fbm);
+		free(bs->blocks);
+		free(bs);
+	}
 }
 
 size_t block_store_allocate(block_store_t *const bs)

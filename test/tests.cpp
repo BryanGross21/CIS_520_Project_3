@@ -5,7 +5,7 @@
 // The object is opaque, so we can't really test things directly....
 
 unsigned int score;
-/*
+
 unsigned int total;
 
 class GradeEnvironment : public testing::Environment {
@@ -20,11 +20,11 @@ class GradeEnvironment : public testing::Environment {
 			std::cout << "SCORE: " << score << '/' << total << std::endl;
 		}
 };
-*/
+
 
 int main(int argc, char **argv) {
 	::testing::InitGoogleTest(&argc, argv);
-	// ::testing::AddGlobalTestEnvironment(new GradeEnvironment);
+	::testing::AddGlobalTestEnvironment(new GradeEnvironment);
 	return RUN_ALL_TESTS();
 }
 
