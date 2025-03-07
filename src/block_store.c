@@ -7,7 +7,7 @@
 
 struct block_store
 {
-	uint8_t *blocks; //Each point in the array represents a different block of data, the array position would then act as the block's id
+	uint8_t *blocks; //Each point in the array represents a byte of data, every 4 bytes or uint8_t should be a block
 	bitmap_t *fbm; //Represents the free block manager
 };
 
@@ -25,15 +25,15 @@ block_store_t *block_store_create()
 	bs->fbm = bitmap_create(BITMAP_SIZE_BITS); //This creates a bitmap depending on the total number of bytes from the set of blocks 
 	if(bs->fbm == NULL)
 	{			
-	   	free(bs);
-		return NULL;
+	   	free(bs); //Free the allocated data
+		return NULL; //Failed allocation
 	}
 	bs->blocks  = (uint8_t *)malloc(BLOCK_STORE_NUM_BYTES);
 	if(bs->blocks == NULL)
 	{
-	   bitmap_destroy(bs->fbm);
-	   free(bs);
-	   return NULL;
+	   bitmap_destroy(bs->fbm); //Free the allocated bitmap
+	   free(bs); //Free the allocated data
+	   return NULL; //Failed allocation
 	}
 	
 	return bs;
@@ -43,9 +43,9 @@ block_store_t *block_store_create()
 void block_store_destroy(block_store_t *const bs)
 {
  	if(bs){
-		bitmap_destroy(bs->fbm);
-		free(bs->blocks);
-		free(bs);
+		bitmap_destroy(bs->fbm); //Frees the bitmap
+		free(bs->blocks); //Fress the block data
+		free(bs); //Frees the block_store_t object
 	}
 }
 
