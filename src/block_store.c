@@ -31,8 +31,9 @@ block_store_t *block_store_create()
         }
 
 
-	bs->fbm = bitmap_overlay(BITMAP_SIZE_BITS, bs->blocks + BITMAP_START_BLOCK); //This creates a bitmap depending on the total number of bytes from the set of blocks
-	 
+	bs->fbm = bitmap_overlay(BITMAP_SIZE_BITS, bs->blocks +  BITMAP_START_BLOCK); //This creates a bitmap depending on the total number of bytes from the set of blocks
+		 
+
 	if(bs->fbm == NULL)
 	{	
 		free(bs->blocks);		
@@ -60,40 +61,37 @@ void block_store_destroy(block_store_t *const bs)
 
 size_t block_store_allocate(block_store_t *const bs)
 {
-	if(bs == NULL || bs->fbm == NULL)
+	if(bs == NULL)
 	{
 		return SIZE_MAX;
 	}
 	
+
 	size_t block_id = bitmap_ffz(bs->fbm);
-
-	if(block_id == SIZE_MAX)
+	
+	if(block_id >= BITMAP_START_BLOCK + BITMAP_NUM_BLOCKS || block_id<BITMAP_START_BLOCK)
 	{
-		return SIZE_MAX;
+		bitmap_set(bs->fbm, block_id);
+		return block_id;
 	}
 
-	bitmap_set(bs->fbm, block_id);
-	
-	return block_id;
+	return SIZE_MAX;
 }
 
 bool block_store_request(block_store_t *const bs, const size_t block_id)
-{
-	if(bs == NULL || bs->fbm == NULL || block_id > 511) //511 since we have 512 blocks
-	{
-		return false;
-	}
-	
-
+{	
+	UNUSED(bs);
+	UNUSED(block_id);	
 	return false;
 }
 
 void block_store_release(block_store_t *const bs, const size_t block_id)
 {
-	if(bs != NULL || bs->fbm != NULL || !(block_id > 511)) //511 since we have 512 blocks
+	if(bs != NULL) //511 since we have 512 blocks
         {
-
-	bitmap_reset(bs->fbm, block_id);
+		if(block_id < BLOCK_STORE_NUM_BLOCKS ){
+			bitmap_reset(bs->fbm, block_id);
+		}
 	}
 }
 
