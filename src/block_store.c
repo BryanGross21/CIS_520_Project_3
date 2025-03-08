@@ -40,11 +40,6 @@ block_store_t *block_store_create()
 	   	free(bs); //Free the allocated data
 		return NULL; //Failed allocation
 	}
-
-	for(size_t i = 0; i < BLOCK_STORE_NUM_BLOCKS; i++)	
-	{
-		block_store_request(bs,i);
-	}
 	
 	return bs;
 }
@@ -61,27 +56,39 @@ void block_store_destroy(block_store_t *const bs)
 
 size_t block_store_allocate(block_store_t *const bs)
 {
-	if(bs == NULL)
+	if(bs == NULL || bs->fbm == NULL)
 	{
 		return SIZE_MAX;
 	}
-	
-
+ 
 	size_t block_id = bitmap_ffz(bs->fbm);
-	
-	if(block_id >= BITMAP_START_BLOCK + BITMAP_NUM_BLOCKS || block_id<BITMAP_START_BLOCK)
-	{
-		bitmap_set(bs->fbm, block_id);
-		return block_id;
-	}
 
-	return SIZE_MAX;
+	if(block_id == SIZE_MAX)
+	{
+		return SIZE_MAX;
+
+	}
+	bitmap_set(bs->fbm, block_id);
+
+	return block_id;
 }
 
 bool block_store_request(block_store_t *const bs, const size_t block_id)
 {	
-	UNUSED(bs);
-	UNUSED(block_id);	
+	if(bs != NULL)
+	{
+		if(block_id < BLOCK_STORE_NUM_BLOCKS)
+		{
+			if(bitmap_test(bs->fbm, block_id) == false)
+			{
+				bitmap_set(bs->fbm, block_id);
+				if(bitmap_test(bs->fbm, block_id) == true)
+				{
+					return true;
+				}
+			}
+		}
+	}
 	return false;
 }
 
