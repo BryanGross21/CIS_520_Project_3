@@ -22,18 +22,27 @@ block_store_t *block_store_create()
 	{
 		return NULL; //Failed allocation.
 	}
-	bs->fbm = bitmap_create(BITMAP_SIZE_BITS); //This creates a bitmap depending on the total number of bytes from the set of blocks 
+
+	bs->blocks  = (uint8_t *)calloc(BLOCK_STORE_NUM_BLOCKS - 1, BLOCK_SIZE_BYTES);
+        if(bs->blocks == NULL)
+        {	
+		free(bs);
+           	return NULL; //Failed allocation
+        }
+
+
+	bs->fbm = bitmap_overlay(BITMAP_SIZE_BITS, bs->blocks + BITMAP_START_BLOCK); //This creates a bitmap depending on the total number of bytes from the set of blocks
+	 
 	if(bs->fbm == NULL)
-	{			
+	{	
+		free(bs->blocks);		
 	   	free(bs); //Free the allocated data
 		return NULL; //Failed allocation
 	}
-	bs->blocks  = (uint8_t *)malloc(BLOCK_STORE_NUM_BYTES);
-	if(bs->blocks == NULL)
+
+	for(size_t i = 0; i < BLOCK_STORE_NUM_BLOCKS; i++)	
 	{
-	   bitmap_destroy(bs->fbm); //Free the allocated bitmap
-	   free(bs); //Free the allocated data
-	   return NULL; //Failed allocation
+		block_store_request(bs,i);
 	}
 	
 	return bs;
@@ -51,21 +60,41 @@ void block_store_destroy(block_store_t *const bs)
 
 size_t block_store_allocate(block_store_t *const bs)
 {
-	UNUSED(bs);
-	return 0;
+	if(bs == NULL || bs->fbm == NULL)
+	{
+		return SIZE_MAX;
+	}
+	
+	size_t block_id = bitmap_ffz(bs->fbm);
+
+	if(block_id == SIZE_MAX)
+	{
+		return SIZE_MAX;
+	}
+
+	bitmap_set(bs->fbm, block_id);
+	
+	return block_id;
 }
 
 bool block_store_request(block_store_t *const bs, const size_t block_id)
 {
-	UNUSED(bs);
-	UNUSED(block_id);
+	if(bs == NULL || bs->fbm == NULL || block_id > 511) //511 since we have 512 blocks
+	{
+		return false;
+	}
+	
+
 	return false;
 }
 
 void block_store_release(block_store_t *const bs, const size_t block_id)
 {
-	UNUSED(bs);
-	UNUSED(block_id);
+	if(bs != NULL || bs->fbm != NULL || !(block_id > 511)) //511 since we have 512 blocks
+        {
+
+	bitmap_reset(bs->fbm, block_id);
+	}
 }
 
 size_t block_store_get_used_blocks(const block_store_t *const bs)
@@ -82,7 +111,7 @@ size_t block_store_get_free_blocks(const block_store_t *const bs)
 
 size_t block_store_get_total_blocks()
 {
-	return 0;
+	return BLOCK_STORE_NUM_BLOCKS;
 }
 
 size_t block_store_read(const block_store_t *const bs, const size_t block_id, void *buffer)
