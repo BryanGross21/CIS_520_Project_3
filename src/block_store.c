@@ -23,7 +23,7 @@ block_store_t *block_store_create()
 		return NULL; //Failed allocation.
 	}
 
-	bs->blocks  = (uint8_t *)calloc(BLOCK_STORE_NUM_BLOCKS - 1, BLOCK_SIZE_BYTES);
+	bs->blocks  = (uint8_t *)calloc(BLOCK_STORE_NUM_BLOCKS, BLOCK_SIZE_BYTES);
         if(bs->blocks == NULL)
         {	
 		free(bs);
@@ -32,7 +32,6 @@ block_store_t *block_store_create()
 
 
 	bs->fbm = bitmap_overlay(BITMAP_SIZE_BITS, bs->blocks +  BITMAP_START_BLOCK); //This creates a bitmap depending on the total number of bytes from the set of blocks
-		 
 
 	if(bs->fbm == NULL)
 	{	
@@ -41,6 +40,12 @@ block_store_t *block_store_create()
 		return NULL; //Failed allocation
 	}
 	
+
+	for(size_t i = BITMAP_START_BLOCK; i < BITMAP_START_BLOCK + BITMAP_NUM_BLOCKS; i++)
+	{
+		bitmap_set(bs->fbm, i);
+	}
+
 	return bs;
 }
 
@@ -56,7 +61,7 @@ void block_store_destroy(block_store_t *const bs)
 
 size_t block_store_allocate(block_store_t *const bs)
 {
-	if(bs == NULL || bs->fbm == NULL)
+	if(bs == NULL)
 	{
 		return SIZE_MAX;
 	}
@@ -66,8 +71,9 @@ size_t block_store_allocate(block_store_t *const bs)
 	if(block_id == SIZE_MAX)
 	{
 		return SIZE_MAX;
-
 	}
+	
+	
 	bitmap_set(bs->fbm, block_id);
 
 	return block_id;
