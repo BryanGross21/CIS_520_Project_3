@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <string.h>
 
 typedef struct bitmap bitmap_t;
 
