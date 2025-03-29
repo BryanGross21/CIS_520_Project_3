@@ -132,7 +132,7 @@ size_t block_store_get_free_blocks(const block_store_t *const bs)
 
 size_t block_store_get_total_blocks()
 {
-	return 0;
+	return BLOCK_STORE_NUM_BLOCKS;
 }
 
 size_t block_store_read(const block_store_t *const bs, const size_t block_id, void *buffer)
@@ -154,16 +154,62 @@ size_t block_store_read(const block_store_t *const bs, const size_t block_id, vo
 
 size_t block_store_write(block_store_t *const bs, const size_t block_id, const void *buffer)
 {
-	UNUSED(bs);
-	UNUSED(block_id);
-	UNUSED(buffer);
-	return 0;
+	if(bs == NULL || buffer == NULL || block_id >= BLOCK_STORE_NUM_BLOCKS)
+	{
+		return 0;
+	}
+
+	//grab the location where we want to write to
+	uint8_t *temp = bs-> blocks + (block_id * BLOCK_SIZE_BYTES);
+
+	//this time copy the contents of the buffer into the correct block
+	memcpy(temp, buffer, BLOCK_SIZE_BYTES);
+	
+	return BLOCK_SIZE_BYTES;
 }
 
 block_store_t *block_store_deserialize(const char *const filename)
 {
-	UNUSED(filename);
-	return NULL;
+	if(filename == NULL)
+	{
+		return NULL;
+	}
+
+	//read binary file
+	FILE *file = fopen(filename, "rb");
+	if(file == NULL)
+	{
+		fclose(file);
+		return NULL;
+	}
+
+	//new block store
+	block_store_t * bs = block_store_create();
+	if (bs == NULL)
+	{
+		fclose(file);
+		return NULL;
+	}
+
+	//ok, now we can read the blocks
+	if (fread(bs-> blocks, 1, BLOCK_STORE_NUM_BYTES, file) != BLOCK_STORE_NUM_BYTES)
+	{
+		block_store_destroy(bs);
+		fclose(file);
+		return NULL;
+	}
+
+	//recreate bitmap
+	bs -> fbm = bitmap_overlay(BITMAP_SIZE_BITS, bs->blocks + BITMAP_START_BLOCK);
+	if(bs-> fbm == NULL)
+	{
+		block_store_destroy(bs);
+		fclose(file);
+		return NULL;
+	}
+
+	fclose(file);
+	return bs;
 }
 
 size_t block_store_serialize(const block_store_t *const bs, const char *const filename)
