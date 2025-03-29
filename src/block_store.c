@@ -1,10 +1,16 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "bitmap.h"
 #include "block_store.h"
 // include more if you need
 
+struct block_store
+{
+	uint8_t *blocks; //Each point in the array represents a byte of data, every 4 bytes or uint8_t should be a block
+	bitmap_t *fbm; //Represents the free block manager
+};
 
 // You might find this handy. I put it around unused parameters, but you should
 // remove it before you submit. Just allows things to compile initially.
@@ -12,43 +18,116 @@
 
 block_store_t *block_store_create()
 {
-	return NULL;
+	block_store_t *bs = (block_store_t *)malloc(sizeof(block_store_t));
+	if(bs == NULL)
+	{
+		return NULL; //Failed allocation.
+	}
+
+	bs->blocks  = (uint8_t *)calloc(BLOCK_STORE_NUM_BLOCKS, BLOCK_SIZE_BYTES);
+        if(bs->blocks == NULL)
+        {	
+			free(bs);
+           	return NULL; //Failed allocation
+        }
+
+
+	bs->fbm = bitmap_overlay(BITMAP_SIZE_BITS, bs->blocks +  BITMAP_START_BLOCK); //This creates a bitmap depending on the total number of bytes from the set of blocks
+
+	if(bs->fbm == NULL)
+	{	
+		free(bs->blocks);		
+	   	free(bs); //Free the allocated data
+		return NULL; //Failed allocation
+	}
+	
+
+	for(size_t i = BITMAP_START_BLOCK; i < BITMAP_START_BLOCK + BITMAP_NUM_BLOCKS; i++)
+	{
+		bitmap_set(bs->fbm, i);
+	}
+
+	return bs;
 }
 
 void block_store_destroy(block_store_t *const bs)
 {
-	UNUSED(bs);
+ 	if(bs){
+		bitmap_destroy(bs->fbm); //Frees the bitmap
+		free(bs->blocks); //Fress the block data
+		free(bs); //Frees the block_store_t object
+	}
 }
 
 size_t block_store_allocate(block_store_t *const bs)
 {
-	UNUSED(bs);
-	return 0;
+	if(bs == NULL)
+	{
+		return SIZE_MAX;
+	}
+ 
+	size_t block_id = bitmap_ffz(bs->fbm);
+
+	if(block_id == SIZE_MAX)
+	{
+		return SIZE_MAX;
+	}
+	
+	
+	bitmap_set(bs->fbm, block_id);
+
+	return block_id;
 }
 
 bool block_store_request(block_store_t *const bs, const size_t block_id)
-{
-	UNUSED(bs);
-	UNUSED(block_id);
+{	
+	if(bs != NULL)
+	{
+		if(block_id < BLOCK_STORE_NUM_BLOCKS)
+		{
+			if(bitmap_test(bs->fbm, block_id) == false)
+			{
+				bitmap_set(bs->fbm, block_id);
+				if(bitmap_test(bs->fbm, block_id) == true)
+				{
+					return true;
+				}
+			}
+		}
+	}
 	return false;
 }
 
 void block_store_release(block_store_t *const bs, const size_t block_id)
 {
-	UNUSED(bs);
-	UNUSED(block_id);
+	if(bs != NULL) //511 since we have 512 blocks
+        {
+		if(block_id < BLOCK_STORE_NUM_BLOCKS ){
+			bitmap_reset(bs->fbm, block_id);
+		}
+	}
 }
 
 size_t block_store_get_used_blocks(const block_store_t *const bs)
 {
-	UNUSED(bs);
-	return 0;
+	if(bs == NULL) //error checking
+	{
+		return SIZE_MAX;
+	}
+	
+	return bitmap_total_set(bs->fbm);
+	
 }
 
 size_t block_store_get_free_blocks(const block_store_t *const bs)
 {
-	UNUSED(bs);
-	return 0;
+	if(bs == NULL) //error checking
+	{
+		return SIZE_MAX;
+	}
+	
+	return (512 - bitmap_total_set(bs->fbm));
+	
 }
 
 size_t block_store_get_total_blocks()
@@ -58,10 +137,19 @@ size_t block_store_get_total_blocks()
 
 size_t block_store_read(const block_store_t *const bs, const size_t block_id, void *buffer)
 {
-	UNUSED(bs);
-	UNUSED(block_id);
-	UNUSED(buffer);
-	return 0;
+	if (bs == NULL || buffer == NULL) //error checking
+	{
+		return 0;
+	}
+	
+	if (block_id >= BLOCK_STORE_NUM_BLOCKS) //more error checking
+	{
+		return 0;  
+	}
+	
+	uint8_t *block = bs->blocks + (block_id * BLOCK_SIZE_BYTES); //find address of the block in array
+	memcpy(buffer, block, BLOCK_SIZE_BYTES); //copy data from block to buffer
+	return BLOCK_SIZE_BYTES; 
 }
 
 size_t block_store_write(block_store_t *const bs, const size_t block_id, const void *buffer)
