@@ -206,7 +206,20 @@ block_store_t *block_store_deserialize(const char *const filename)
 
 size_t block_store_serialize(const block_store_t *const bs, const char *const filename)
 {
-	UNUSED(bs);
-	UNUSED(filename);
-	return 0;
+	if(bs == NULL ||  filename == NULL)
+	{
+		return 0;
+	}
+
+	//read binary file to get ready to write to
+        FILE* file = fopen(filename, "wb");
+        if(file == NULL)
+        {
+                return 0;
+        }
+
+	size_t blocks_written = fwrite(bs->blocks, BLOCK_SIZE_BYTES, BLOCK_STORE_NUM_BLOCKS, file);
+
+	fclose(file);
+	return blocks_written * BLOCK_SIZE_BYTES;
 }
