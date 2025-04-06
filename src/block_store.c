@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "bitmap.h"
 #include "block_store.h"
@@ -159,70 +161,69 @@ size_t block_store_write(block_store_t *const bs, const size_t block_id, const v
 
 block_store_t *block_store_deserialize(const char *const filename)
 {
-	if(filename == NULL)
-	{
-		return NULL; //Invalid file name
-	}
+        if(filename == NULL)
+        {
+                return NULL; //Invalid file name
+        }
 
-	//read binary file
-	FILE *file = fopen(filename, "rb");
-	if(file == NULL)
-	{
-		fclose(file);
-		return NULL;
-	}
+        //read the file
+        int file = open(filename, O_RDONLY);
+        if(file < 0)
+        {
+                return NULL;
+        }
 
-	//new block store
-	block_store_t * bs = block_store_create();
-	if (bs == NULL)
-	{
-		fclose(file);
-		return NULL;
-	}
+        //new block store
+        block_store_t * bs = block_store_create();
+        if (bs == NULL)
+        {
+                close(file);
+                return NULL;
+        }
 
-	//ok, now we can read the blocks
-	if (fread(bs-> blocks, 1, BLOCK_STORE_NUM_BYTES, file) != BLOCK_STORE_NUM_BYTES)
-	{
-		block_store_destroy(bs);
-		fclose(file);
-		return NULL;
-	}
+        //ok, now we can read the blocks
+	size_t bytes_read = read(file, bs->blocks, BLOCK_STORE_NUM_BYTES);
+        if (bytes_read != BLOCK_STORE_NUM_BYTES)
+        {
+                close(file);
+                return NULL;
+        }
 
-	//recreate bitmap
-	bs -> fbm = bitmap_overlay(BITMAP_SIZE_BITS, bs->blocks + BITMAP_START_BLOCK);
-	if(bs-> fbm == NULL)
-	{
-		block_store_destroy(bs);
-		fclose(file);
-		return NULL;
-	}
+        //recreate bitmap
+        bs -> fbm = bitmap_overlay(BITMAP_SIZE_BITS, bs->blocks + BITMAP_START_BLOCK);
+        if(bs-> fbm == NULL)
+        {
+                close(file);
+                return NULL;
+        }
 
-	fclose(file);
-	return bs;
+        close(file);
+        return bs;
 }
+
 
 size_t block_store_serialize(const block_store_t *const bs, const char *const filename)
 {
-	if(bs == NULL ||  filename == NULL)
+	if(bs == NULL || filename == NULL)
 	{
 		return 0; //Invalid parameters
 	}
 
 	//read binary file to get ready to write to
-        FILE* file = fopen(filename, "wb");
-        if(file == NULL)
+        int file  = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+        if(file < 0)
         {
-                return 0;
+                return 0; //failed allocation
         }
 
-	size_t blocks_written = fwrite(bs->blocks, BLOCK_SIZE_BYTES, BLOCK_STORE_NUM_BLOCKS, file); //We see the amount of blocks written since fwrite takes in the amount of blocks and the total size of those blocks to see what to write from the provide file and struct
+	size_t blocks_written = write(file, bs->blocks, BLOCK_STORE_NUM_BLOCKS * BLOCK_SIZE_BYTES); //Writes our total file size to our file of our choice
 
-	if(blocks_written > block_store_get_total_blocks())
+	if(blocks_written != BLOCK_STORE_NUM_BLOCKS * BLOCK_SIZE_BYTES)
 	{
-		fclose(file); //Closes the file
+		close(file); //Closes the file
 		return 0; //Return 0 since we wrote outside our total block range
 	}
 
-	fclose(file); //Close the file
-	return blocks_written * BLOCK_SIZE_BYTES; //Provides of total bytes used from our blocks written with the amount of bytes per each block
+	close(file); //Close the file
+	return blocks_written; //Provides of total bytes used from our blocks written with the amount of bytes per each block
 }
