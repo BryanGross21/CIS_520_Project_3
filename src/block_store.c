@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "bitmap.h"
 #include "block_store.h"
@@ -13,22 +14,21 @@ struct block_store
 	bitmap_t *fbm; //Represents the free block manager
 };
 
-// You might find this handy. I put it around unused parameters, but you should
-// remove it before you submit. Just allows things to compile initially.
-#define UNUSED(x) (void)(x)
 
 block_store_t *block_store_create()
 {
-	block_store_t *bs = (block_store_t *)malloc(sizeof(block_store_t));
+	block_store_t *bs = (block_store_t *)calloc(1, sizeof(block_store_t));
 	if(bs == NULL)
 	{
+		perror("Failed to allocate memory for block store");
 		return NULL; //Failed allocation.
 	}
 
 	bs->blocks  = (uint8_t *)calloc(BLOCK_STORE_NUM_BLOCKS, BLOCK_SIZE_BYTES);
         if(bs->blocks == NULL)
         {	
-			free(bs);
+		perror("Failed to allocate memory for the blocks for our block store");
+		free(bs);
            	return NULL; //Failed allocation
         }
 
@@ -37,6 +37,7 @@ block_store_t *block_store_create()
 
 	if(bs->fbm == NULL)
 	{	
+		perror("Failed to create bitmap overlay");
 		free(bs->blocks);		
 	   	free(bs); //Free the allocated data
 		return NULL; //Failed allocation
@@ -170,6 +171,7 @@ block_store_t *block_store_deserialize(const char *const filename)
         int file = open(filename, O_RDONLY);
         if(file < 0)
         {
+		perror("Failed to open file for reading");
                 return NULL;
         }
 
@@ -185,6 +187,8 @@ block_store_t *block_store_deserialize(const char *const filename)
 	size_t bytes_read = read(file, bs->blocks, BLOCK_STORE_NUM_BYTES);
         if (bytes_read != BLOCK_STORE_NUM_BYTES)
         {
+		perror("Failed to read from file");
+		free(bs);
                 close(file);
                 return NULL;
         }
@@ -193,6 +197,9 @@ block_store_t *block_store_deserialize(const char *const filename)
         bs -> fbm = bitmap_overlay(BITMAP_SIZE_BITS, bs->blocks + BITMAP_START_BLOCK);
         if(bs-> fbm == NULL)
         {
+		perror("Failed to make the bitmap");
+		free(bs->blocks);
+		free(bs);
                 close(file);
                 return NULL;
         }
@@ -213,6 +220,7 @@ size_t block_store_serialize(const block_store_t *const bs, const char *const fi
         int file  = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
         if(file < 0)
         {
+		perror("Failed to open file for writing");
                 return 0; //failed allocation
         }
 
@@ -220,6 +228,7 @@ size_t block_store_serialize(const block_store_t *const bs, const char *const fi
 
 	if(blocks_written != BLOCK_STORE_NUM_BLOCKS * BLOCK_SIZE_BYTES)
 	{
+		perror("Failed to write to file");
 		close(file); //Closes the file
 		return 0; //Return 0 since we wrote outside our total block range
 	}

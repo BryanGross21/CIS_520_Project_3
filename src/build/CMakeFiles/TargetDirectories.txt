@@ -1,0 +1,4 @@
+/homes/bryangross21/CIS_520_Project_3/src/build/CMakeFiles/rebuild_cache.dir
+/homes/bryangross21/CIS_520_Project_3/src/build/CMakeFiles/edit_cache.dir
+/homes/bryangross21/CIS_520_Project_3/src/build/CMakeFiles/hw3_test.dir
+/homes/bryangross21/CIS_520_Project_3/src/build/CMakeFiles/block_store.dir
